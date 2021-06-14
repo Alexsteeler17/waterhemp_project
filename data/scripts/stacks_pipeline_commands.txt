@@ -1,0 +1,419 @@
+# Stacks Pipeline 
+Version: 2.54
+	Working Directory: waterhemp_project
+	File tree: waterhemp_project
+					data
+						analyses
+						scripts
+							logs
+							stacks_scripts
+							tassel_scripts
+						seqs
+							Project_KWKW_L3_H2159P_Waselkov
+								fastqc
+								raw_seqs
+									pool1
+									pool2
+									pool3
+							reference
+							w7xt0omso8
+								UnalignedL3
+									Project_KWKW_L3_H2159P_Waselkov.zip
+						stacks
+							bwa
+								alignments
+							info
+							logs
+							reads
+								pool1
+								pool2
+								pool3
+							ref_map_pl
+							structure
+								admix
+								noadmix
+						tassel
+							bwa
+								alignments
+							logs
+							reads
+								pool1
+								pool2
+								pool3
+
+---------------------------------------------------------------------
+
+## Stacks Pipeline Commands
+#### Demultiplex samples 
+Demultiplex and clean raw fastq files using Stacks process_radtags plugin (Stacks Pipeline, Stacks/2.54-IGB-gcc-8.2.0)
+(pools demultiplexed separately, these were used for downstream analyses)
+	Pool1: (script: stacks/process_radtags_pool1.sh)
+		$ process_radtags -p data/seqs/Project_KWKW_L3_H2159P_Waselkov/raw_seqs/pool1 -o data/stacks/reads/pool1 -b data/seqs/Project_KWKW_L3_H2159P_Waselkov/HiSeq2159_barcode_key_stacks_pool1.txt --inline_null -e ApeKI -r -c -q 2>&1 | tee data/stacks/logs/Log_process_radtags_$(date +%Y%m%d-%Hh%Mm%Ss).txt
+		
+	Pool2: (script: stacks/process_radtags_pool2.sh)
+		$ process_radtags -p data/seqs/Project_KWKW_L3_H2159P_Waselkov/raw_seqs/pool2 -o data/stacks/reads/pool2 -b data/seqs/Project_KWKW_L3_H2159P_Waselkov/HiSeq2159_barcode_key_stacks_pool2.txt --inline_null -e ApeKI -r -c -q 2>&1 | tee data/stacks/logs/Log_process_radtags_$(date +%Y%m%d-%Hh%Mm%Ss).txt
+	
+	Pool3: (script: stacks/process_radtags_pool3.sh)
+		$ process_radtags -p data/seqs/Project_KWKW_L3_H2159P_Waselkov/raw_seqs/pool3 -o data/stacks/reads/pool3 -b data/seqs/Project_KWKW_L3_H2159P_Waselkov/HiSeq2159_barcode_key_stacks_pool3.txt --inline_null -e ApeKI -r -c -q 2>&1 | tee data/stacks/logs/Log_process_radtags_$(date +%Y%m%d-%Hh%Mm%Ss).txt
+
+
+
+(pools demultiplexed together, just to show this can be done with single command, initially though I needed to demultiplex each pool seperate, did not use)
+	Pools 1-3: (script: stacks/process_radtags.sh)
+		$ process_radtags -p data/seqs/Project_KWKW_L3_H2159P_Waselkov/raw_seqs/ -o data/stacks/reads/ -b data/seqs/Project_KWKW_L3_H2159P_Waselkov/HiSeq2159_barcode_key_stacks.txt --inline_index -e ApeKI -r -c -q 2>&1 | tee data/stacks/logs/Log_process_radtags_$(date +%Y%m%d-%Hh%Mm%Ss).txt
+		
+		
+		
+#### Align de-multiplexed reads to reference genome (Burrows-Wheeler Aligner, BWA/0.7.17-IGB-gcc-8.2.0)
+Construct reference genome FM-index using BWA
+		(script: bwa/bwa_index.sh)
+		$ bwa index -p data/stacks/bwa/bwa_index_wh data/seqs/reference/Amaranthus_tuberculatus.faa 2>&1 | tee data/stacks/logs/bwa_index_$(date +%Y%m%d-%Hh%Mm%Ss).txt
+		
+Align de-multiplexed reads to indexed reference using BWA-MEM algorithm to generate mapped files in SAM format	
+(Pools aligned separately, these were used for downstream analyses)
+	Pool1: (script: bwa/bwa_mem_alignment_pool1.sh)
+		$ for i in data/stacks/reads/pool1/*fq.gz; do
+			bwa mem data/stacks/bwa/bwa_index_wh $i > $i.sam;
+		done
+		
+	Pool2: (script: bwa/bwa_mem_alignment_pool2.sh)
+		$ for i in data/stacks/reads/pool2/*fq.gz; do
+			bwa mem data/stacks/bwa/bwa_index_wh $i > $i.sam;
+		done
+		
+	Pool3: (script: bwa/bwa_mem_alignment_pool3.sh)
+		$ for i in data/stacks/reads/pool3/*fq.gz; do
+			bwa mem data/stacks/bwa/bwa_index_wh $i > $i.sam;
+		done
+
+Move aligned reads from all pools into single directory using command line: (waterhemp_project/data/stacks/bwa/alignments)
+	Pool1:
+		$ mv data/stacks/reads/pool1/*.sam data/stacks/bwa/alignments/
+	Pool2:
+		$ mv data/stacks/reads/pool2/*.sam data/stacks/bwa/alignments/
+	Pool3:
+		$ mv data/stacks/reads/pool3/*.sam data/stacks/bwa/alignments/
+		
+Rename mapped SAM files to remove ".fq.gz" from file names using command line:
+		$ rename '.fq.gz' '' data/stacks/bwa/alignments/*.sam
+
+Convert SAM files to BAM format using Samtools (Samtools, SAMtools/1.9-IGB-gcc-4.9.4)
+		(script: samtools/samtools_view_sam_to_bam.sh)
+		$ for i in data/stacks/bwa/alignments/*.sam; do
+			samtools view -b $i > $i.bam;
+		done 
+		
+Move BAM files to new directory using command line: (waterhemp_project/data/stacks/bwa/alignments_bam)
+		$  mv data/stacks/bwa/alignments/*.bam data/stacks/bwa/alignments_bam/
+		
+Rename BAM files to remove ".sam" from file names
+		$ rename '.sam' '' data/stacks/bwa/alignments_bam/*.bam 
+		
+Sort BAM files using Samtools
+		(script: samtools/samtoolssort_bam_to_sortedbam.sh)
+		$ for i in data/stacks/bwa/alignments_bam/*.bam; do
+			samtools sort $i -o $i.sorted.bam
+		done 
+		
+			- this command only sorted ~3/4 of files then output the rest as empty with an error stating "No space left on device"
+			- To circumvent this: I ran a seperate script for each of the poulations that did not initially get sorted
+				PCL:
+					$for i in data/stacks/bwa/alignments_bam/PCL*.bam; do
+						samtools sort $i > $i.sorted.bam
+					done
+				PEK:
+					$for i in data/stacks/bwa/alignments_bam/PEK*.bam; do
+						samtools sort $i > $i.sorted.bam
+					done
+				SCF:
+					$for i in data/stacks/bwa/alignments_bam/SCF*.bam; do
+						samtools sort $i > $i.sorted.bam
+					done
+				STW:
+					$for i in data/stacks/bwa/alignments_bam/STW*.bam; do
+						samtools sort $i > $i.sorted.bam
+					done
+				TR:
+					$for i in data/stacks/bwa/alignments_bam/TR*.bam; do
+						samtools sort $i > $i.sorted.bam
+					done
+				VGO:
+					$for i in data/stacks/bwa/alignments_bam/VGO*.bam; do
+						samtools sort $i > $i.sorted.bam
+					done
+
+Move sorted BAM files to new directory using command line: (waterhemp_project/data/stacks/bwa/alignments_sorted_bam)
+		$ mv data/stacks/bwa/alignments_bam/*.sorted.bam data/stacks/bwa/alignments_sorted_bam/
+		
+Rename sorted BAM files to remove ".bam" from file names using command line:
+		$ rename '.bam.sorted.bam' '.sorted.bam' data/stacks/bwa/alignments_sorted_bam/*.sorted.bam
+		
+Index sorted BAM files
+		(script: samtools/samtools_index.sh)
+		$ for i in data/stacks/bwa/alignments_sorted_bam/*.sorted.bam; do
+			samtools index $i;
+		done 
+		
+----------------------------------------------------------------
+
+#### Run the STACKS pipeline (Stacks Pipeline, Stacks/2.54-IGB-gcc-8.2.0)
+First run with default filtering parameters:
+Run ref_map.pl wrapper to execute gstacks and populations programs (results in data/stacks/ref_map_pl/)
+	(script: stacks/ref_map_pl.sh)
+	$ ref_map.pl --samples data/stacks/bwa/alignments_sorted_bam/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt -o data/stacks/ref_map_pl/ 
+	
+Run populations program to export data in structure format for structure and in genepop format for PCA using adegenet (results in ref_map_pl/populations_1)
+	- Populations filtering 1 (results in ref_map_pl/populations_1)	
+		(script: stacks/populations_structure_export.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 10 -r 0.75 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export
+	
+Next, incrementally increase the stringency of the parameters for populations program until you can narrow down to a number of SNPs that you can be confident in, export in structure and genepop format
+	- Populations filtering 2 (results in ref_map_pl/populations_2)
+		(script: stacks/populations_structure_export_2.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 10 -r 0.85 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_2/
+
+	- Populations filtering 3 (results in ref_map_pl/populations_3)
+		(script: stacks/populations_structure_export_3.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 10 -r 0.95 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_3/
+
+	- Populations filtering 4 (results in ref_map_pl/populations_4)
+		(script: stacks/populations_structure_export_4.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 13 -r 0.75 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_4/
+
+	- Populations filtering 5 (results in ref_map_pl/populations_5)
+		(script: stacks/populations_structure_export_5.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 13 -r 0.85 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_5/
+
+	- Populations filtering 6 (results in ref_map_pl/populations_6)
+		(script: stacks/populations_structure_export_6.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 13 -r 0.95 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_6/
+
+	- Populations filtering 7 (results in ref_map_pl/populations_7)
+		(script: stacks/populations_structure_export_7.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.75 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_7/
+
+	- Populations filtering 8 (results in ref_map_pl/populations_8)
+		(script: stacks/populations_structure_export_8.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.85 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_8/
+
+	- Populations filtering 9 (results in ref_map_pl/populations_9)
+		(script: stacks/populations_structure_export_9.sh)
+		$ populations -P data/stacks/ref_map_pl/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.95 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl/populations_9/
+
+
+Next, increase stringency of ref_map_pl parameters and again incrementally increase stringency of populations program filtering parameters
+Run ref_map.pl wrapper to execute gstacks and populations programs (results in data/stacks/ref_map_pl_2/)
+	(script: stacks/ref_map_pl_2.sh)
+	$ ref_map.pl --samples data/stacks/bwa/alignments_sorted_bam/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt -o data/stacks/ref_map_pl_2/ -X "gstacks:--min-mapq 20" -X "gstacks:--max-clipped 0.0"	
+
+	- Populations filtering 1 (results in ref_map_pl_2/populations_1)
+		(script: stacks/populations_structure_export_1_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 10 -r 0.75 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_1/
+		
+	- Populations filtering 2 (results in ref_map_pl_2/populations_2)
+		(script: stacks/populations_structure_export_2_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 10 -r 0.85 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_2/
+	
+	- Populations filtering 3 (results in ref_map_pl_2/populations_3)
+		(script: stacks/populations_structure_export_3_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 10 -r 0.95 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_3/
+	
+	- Populations filtering 4 (results in ref_map_pl_2/populations_4)
+		(script: stacks/populations_structure_export_4_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 13 -r 0.75 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_4/
+	
+	- Populations filtering 5 (results in ref_map_pl_2/populations_5)
+		(script: stacks/populations_structure_export_5_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 13 -r 0.85 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_5/
+	
+	- Populations filtering 6 (results in ref_map_pl_2/populations_6)
+		(script: stacks/populations_structure_export_6_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 13 -r 0.95 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_6/
+	
+	- Populations filtering 7 (results in ref_map_pl_2/populations_7)
+		(script: stacks/populations_structure_export_7_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.75 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_7/
+	
+	- Populations filtering 8 (results in ref_map_pl_2/populations_8)
+		(script: stacks/populations_structure_export_8_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.85 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_8/
+	
+	- Populations filtering 9 (results in ref_map_pl_2/populations_9)
+		(script: stacks/populations_structure_export_9_ref2.sh)
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.95 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_9/
+			- these filtering parameters were used for downstream analyses 
+			
+----------------------------------------------
+
+### Run STRUCTURE: ADMIX & NOADMIX models
+Create STRUCTURE configuration files mainparams and extraparams: ADMIX model (data/stacks/structure_2/admix/)
+	mainparams:
+		#define OUTFILE /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/admix/output_1
+		#define INFILE /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/admix/populations.structure
+		#define NUMINDS 285
+		#define NUMLOCI 2314
+		#define LABEL 1
+		#define POPDATA 1
+		#define POPFLAG 0
+		#define LOCDATA 0
+		#define PHENOTYPE 0
+		#define MARKERNAMES 1
+		#define MAPDISTANCES 0
+		#define ONEROWPERIND 0
+		#define PHASEINFO 0
+		#define PHASED 0
+		#define RECESSIVEALLELES 0
+		#define EXTRACOLS 0
+		#define MISSING -9
+		#define PLOIDY 2
+		#define MAXPOPS 1
+		#define BURNIN 100000
+		#define NUMREPS 500000
+
+
+		#define NOADMIX 0
+		#define LINKAGE 0
+		#define USEPOPINFO 0
+
+		#define LOCPRIOR 0
+		#define INFERALPHA 1
+		#define ALPHA 1.0
+		#define POPALPHAS 0 
+		#define UNIFPRIORALPHA 1 
+		#define ALPHAMAX 10.0
+		#define ALPHAPROPSD 0.025
+
+
+		#define FREQSCORR 1 
+		#define ONEFST 0
+		#define FPRIORMEAN 0.01
+		#define FPRIORSD 0.05
+
+
+		#define INFERLAMBDA 0 
+		#define LAMBDA 1.0
+		#define COMPUTEPROB 1 
+		#define PFROMPOPFLAGONLY 0 
+		#define ANCESTDIST 0 
+		#define STARTATPOPINFO 0 
+		#define METROFREQ 10
+
+
+		#define UPDATEFREQ 1
+		
+	extraparams:
+		(this file is empty, info for this can go in the mainparams file)
+		
+Run STRUCTURE with various values of K (1-20): do 5 runs per K (admix) (all required structure files should be in same folder)
+	(scripts: structure/structure_K<1-20>_5runs.sh)
+	K=<1-20>; insert the value of K you want betweeen "<>" marks and do not include those marks
+		$ for i in 1 2 3 4 5
+		do
+		structure -m /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/admix/mainparams.txt -e /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/admix/extraparams.txt -i /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/admix/populations.structure -o /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/admix/output_K<1-20>_run$i -K <1-20>
+		done 
+		
+Determine optimum value of K using structureharvester with Evanno et. al. deltaK method (http://taylor0.biology.ucla.edu/structureHarvester/)
+	- input zip file containing structure output of all runs for each K
+		- waterhemp_project/data/stacks/structure_2/admix/structure_harvester/structure_out_admix.zip
+	- K=2 was most likely for this dataset (results in /data/stacks/structure_2/admix/structure_harvester/)
+
+Run structure output through CLUMPAK program to handle label switching and genuine multimodality and output graphs		
+	- Standalone program through command line: Main Pipeline (Run for K=2 structure results), (must be run from directory where CLUMPAK is installed: Documents/CLUMPAK/CLUMPAK)
+		- LargeK Greedy algorithm 
+			$ perl CLUMPAK.pl --id 3 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/largeK_greedy_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/admix/structure_out_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 3 --clumpprepeats 2000
+		
+		- Greedy algorithm 
+			$ perl CLUMPAK.pl --id 2 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/greedy_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/admix/structure_out_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 2 --clumpprepeats 2000
+			
+		- Fullsearch algorithm 
+			$ perl CLUMPAK.pl --id 1 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/fullsearch_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/admix/structure_out_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 1
+		
+		
+		
+Create STRUCTURE configuration files mainparams and extraparams: NOADMIX model
+	mainparams 
+		#define OUTFILE /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/noadmix/output_1
+		#define INFILE /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/noadmix/populations.structure
+		#define NUMINDS 285
+		#define NUMLOCI 2314
+		#define LABEL 1
+		#define POPDATA 1
+		#define POPFLAG 0
+		#define LOCDATA 0
+		#define PHENOTYPE 0
+		#define MARKERNAMES 1
+		#define MAPDISTANCES 0
+		#define ONEROWPERIND 0
+		#define PHASEINFO 0
+		#define PHASED 0
+		#define RECESSIVEALLELES 0
+		#define EXTRACOLS 0
+		#define MISSING -9
+		#define PLOIDY 2
+		#define MAXPOPS 1
+		#define BURNIN 100000
+		#define NUMREPS 500000
+
+
+		#define NOADMIX 1
+		#define LINKAGE 0
+		#define USEPOPINFO 0
+
+		#define LOCPRIOR 0
+		#define INFERALPHA 1
+		#define ALPHA 1.0
+		#define POPALPHAS 0 
+		#define UNIFPRIORALPHA 1 
+		#define ALPHAMAX 10.0
+		#define ALPHAPROPSD 0.025
+
+
+		#define FREQSCORR 1 
+		#define ONEFST 0
+		#define FPRIORMEAN 0.01
+		#define FPRIORSD 0.05
+
+
+		#define INFERLAMBDA 0 
+		#define LAMBDA 1.0
+		#define COMPUTEPROB 1 
+		#define PFROMPOPFLAGONLY 0 
+		#define ANCESTDIST 0 
+		#define STARTATPOPINFO 0 
+		#define METROFREQ 10
+
+
+		#define UPDATEFREQ 1
+		
+	extraparams	
+		(this file is empty, info for this can go in the mainparams file)
+		
+Run STRUCTURE with various values of K (1-20): do 5 runs per K (noadmix) (all required structure files should be in same folder)
+	(scripts: structure/structure_noadmix_K<1-20>_5runs.sh)
+	K=<1-20>; insert the value of K you want betweeen "<>" marks and do not include those marks
+		$ for i in 1 2 3 4 5
+		do
+		structure -m /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/noadmix/mainparams.txt -e /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/noadmix/extraparams.txt -i /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/noadmix/populations.structure -o /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/noadmix/output_K<1-20>_run$i -K <1-20>
+		done 
+
+Determine optimum value of K using structureharvester with Evanno et. al. deltaK method (http://taylor0.biology.ucla.edu/structureHarvester/)
+	- input zip file containing structure output of all runs for each K
+		- data/stacks/structure_2/noadmix/structureharvester/structure_out_noadmix
+	- K=2 most likely clustering for this data 
+	
+Run structure output through CLUMPAK program to handle label switching and genuine multimodality and output graphs
+	- Run program using the Main Pipeline
+	- Standalone program through command line: Main Pipeline (Run for K=2) (must be run from directory where CLUMPAK is installed: Documents/CLUMPAK/CLUMPAK)
+		- LargeK Greedy algorithm 
+			$ perl CLUMPAK.pl --id 3 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/largeK_greedy_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/structure_out_noadmix_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 3 --clumpprepeats 2000
+			
+		- Greedy algorithm 
+			$ perl CLUMPAK.pl --id 2 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/greedy_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/structure_out_noadmix_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 2 --clumpprepeats 2000
+			
+		- Fullsearch algorithm 
+			$ perl CLUMPAK.pl --id 1 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/fullsearch_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/structure_out_noadmix_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 1
+
+---------------------------------------------
+
+###Run PCA using R package adegenet for both structure model results: ADMIX & NOADMIX
+	- ADMIX: data/stacks/structure_2/admix/adegenet/
