@@ -1,6 +1,6 @@
 ## Waterhemp Sequence Data (HiSeq2159)
 Waterhemp (*Amaranthus tuberculatus*) read data was downloaded from SLIMS on Tue Feb 2 15:18:25 PST 2021, using:  
-	$ rsync -avL slimsdata.genomecenter.ucdavis.edu::slims/w7xt0omso8  
+	&emsp;$ rsync -avL slimsdata.genomecenter.ucdavis.edu::slims/w7xt0omso8  
 SLIMS run info  
 	Machine	J00113  
 	No. of Cycles	117  
