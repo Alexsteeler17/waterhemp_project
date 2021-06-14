@@ -1,0 +1,299 @@
+---
+title: "PCA_adegenet"
+author: "Alexander Lopez"
+date: "5/20/2021"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(adegenet)
+library(seqinr)
+library(pegas)
+library(ape)
+library(hierfstat)
+library(ade4)
+library(FactoMineR)
+library(factoextra)
+library(ggfortify)
+library(patchwork)
+library(geosphere)
+library(genepop)
+library(ecodist)
+
+rory_theme <- theme_classic(base_size = 18) + 
+  theme(axis.title.y=element_text(vjust=1.5), axis.title.x=element_text(vjust=0.2)) + #adjust axis title position
+  theme(plot.margin = unit(c(.3,.3,.6,.6), "cm"), line = element_line(size = 1.25)) + #adjust plot margins and line element size
+  theme(axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black")) + #draw x and y axes
+  theme(axis.text.x = element_text(margin=unit(c(0.5,0.5,0.5,0.5), "cm")), axis.text.y = element_text(margin=unit(c(0.5,0.5,0.5,0.5), "cm"))) + #put margins around axis labels so that nothing overlaps
+  theme(axis.ticks.length =unit(-0.3, "cm")) + # move tickmarks inside the axes
+  theme(panel.spacing = unit(2, units = "lines")) + #spread out facets
+  theme(strip.background = element_blank()) #remove border from facet labels
+```
+### **Read in data**
+```{r}
+setwd("../../../../waterhemp_project/") #set working directory
+genind1 <- read.genepop("data/stacks/ref_map_pl_2/populations_9/populations.gen") #read in genepop file from STACKS to a genind object
+```
+### **Summary data**
+```{r}
+genind1_summary <- summary(genind1) #summary of STACKS genepop file as genind object
+
+names(genind1_summary) #print names of the genind object
+
+par(mfrow=c(2,2)) #function to set graphical parameters to output following plots like a facet with 2 rows and 2 columns
+
+plot(genind1_summary$n.by.pop, genind1_summary$pop.n.all, xlab="Population sample size", ylab="Number of alleles",main="Alleles numbers and sample sizes",type="p") #plot of genind object summary displaying scatterplot of allele numbers to population sample size 
+
+barplot(genind1_summary$loc.n.all, ylab="Number of alleles",main="Number of alleles per locus") #barplot of genind object summary displaying the number of alleles at each locus
+
+barplot(genind1_summary$Hexp-genind1_summary$Hobs, main="Heterozygosity: expected-observed",ylab="Hexp - Hobs") #barplot of genind object summary displaying the difference between expected and observed heterozygosity
+
+barplot(genind1_summary$n.by.pop, main="Sample sizes per population",ylab="Number of genotypes",las=3) #barplot of genind object summmary displaying population sample sizes
+```
+
+
+
+```{r}
+bartlett.test(list(genind1_summary$Hexp, genind1_summary$Hobs)) #Bartlett Test of Homogeneity of Variances, Performs Bartlett's test of the null that the variances in each of the groups (samples) are the same
+
+t.test(genind1_summary$Hexp, genind1_summary$Hobs, pair=T, var.equal=TRUE, alter="greater") #Paired t-test to determine if observed and expected heterozygosity are the same
+```
+
+
+```{r}
+#Testing for HWE
+genind1_hwt <- hw.test(genind1, B=0) #HWE test, one test per locus, B=0 is parametric version
+genind1_hwt[1:10,]
+```
+
+
+
+```{r}
+#F statistics to analyze population structure
+genind1_Fst <- pegas::Fst(as.loci(genind1)) #F statistics (Fit, Fst, Fis) per locus
+genind1_Fst[1:10,]
+```
+
+### **PCA: Adegenet**
+```{r}
+#PCA to summarize genetic diversity in sampled populations
+sum(is.na(genind1$tab)) #calculates how many missing data (NA) values are present in data, missing data needs to be replaced
+
+genind1_adjusted_NA <- scaleGen(genind1, NA.method="mean") #replaces NA values with mean allele frequency
+class(genind1_adjusted_NA) #checks class of transformed data
+dim(genind1_adjusted_NA) #displays dimensions of transformed data
+genind1_adjusted_NA[1:5,1:5] #displays first 5 columns and rows of transformed data
+
+#PCA
+genind1_pca <- dudi.pca(genind1_adjusted_NA, cent=FALSE, scale=FALSE, scannf=FALSE, nf=3) #compute PCA of transformed genind1 data adjusted to replace NA values with mean allele frequency 
+barplot(genind1_pca$eig[1:50], main="PCA eigenvalues", col=heat.colors(50)) #barplot displaying first 50 eigenvalues computed from PCA
+genind1_pca #information output from PCA
+
+#PCA plot (PC 1&2) with individual labels
+s.label(genind1_pca$li) #function to plot scatterplot of PCA with label for each individual using PC 1&2
+title("PCA of genind1_adjusted_NA dataset\naxes 1-2") #adds title for plot
+add.scatter.eig(genind1_pca$eig[1:20], 3, 1, 2) #adds barplot for first 20 eigenvalues to scatterplot, highlighting eigenvalues used: 1&2
+
+#PCA plot (PC 1&2) with population label and inertia ellipses for each population
+s.class(genind1_pca$li, pop(genind1)) #function to plot scatterplot of PCA with inertia ellipses and single population label to highlight population groups
+title("PCA of genind1_adjusted_NA dataset\naxes 1-2") #adds title for plot
+add.scatter.eig(genind1_pca$eig[1:20], 3, 1, 2) #adds barplot for first 20 eigenvalues to scatterplot, highlighting eigenvalues used: 1&2
+
+#PCA plot (PC 1&3) with population label and inertia ellipses for each population
+s.class(genind1_pca$li, pop(genind1), xax=1, yax=3, sub="PCA 1-3", csub=2) #function to plot scatterplot of PCA with inertia ellipses and single population label to highlight population groups using PC 1&3
+title("PCA of genind1_adjusted_NA dataset\naxes 1-3") #adds title to plot
+add.scatter.eig(genind1_pca$eig[1:20],nf=3,xax=1,yax=3) #adds barplot for first 20 eigenvalues to scatterplot, highlighting eigenvalues used: 1&3
+
+#PCA plot (PC 1&2) with color
+col <- funky(23)
+s.class(genind1_pca$li, pop(genind1), xax=1, yax=2, col=transp(col,.6), axesell=FALSE, cstar=0, cpoint=1, grid=FALSE) 
+title("PCA of genind1_adjusted_NA dataset\naxes 1-2") #adds title for plot
+add.scatter.eig(genind1_pca$eig[1:20], 3, 1, 2) #adds barplot for first 20 eigenvalues to scatterplot, highlighting eigenvalues used: 1&2
+```
+
+```{r}
+#pca method from shorter adegenet tutorial
+x.cows <- tab(genind1, freq=TRUE, NA.method="mean") #replaces NA values with mean allele frequencies
+pca.cows <- dudi.pca(x.cows, center=TRUE, scale=FALSE, scannf=FALSE, nf=3)
+pca.cows
+s.class(pca.cows$li, fac=pop(genind1), col=funky(23))
+add.scatter.eig(pca.cows$eig[1:50],3,1,2, ratio=.3)
+title("PCA of genind1 dataset, alt method\naxes 1-2") #adds title for plot
+
+s.class(pca.cows$li, fac=pop(genind1), xax=2, yax=3, col=transp(funky(23),.6), axesel=FALSE, cstar=0, cpoint=3)
+add.scatter.eig(pca.cows$eig[1:50],3,2,3, ratio=.3)
+title("PCA of genind1 dataset, alt method\naxes 2-3") #adds title for plot
+```
+
+### **PCoA: Adegenet**
+```{r}
+X.pco <- tab(genind1, freq=TRUE, NA.method="mean")
+pco.cows <- dudi.pco(dist(X.pco), scannf=FALSE, nf=3)
+s.class(pco.cows$li, fac=pop(genind1), col=funky(23))
+add.scatter.eig(pco.cows$eig[1:50],3,1,2, ratio=.3)
+title("PCoA of genind1_adjusted_NA, alt method\naxes 1-2") #adds title for plot
+```
+
+### **PCA: FactoMineR plotted using factoextra**
+```{r, fig.width=9, fig.height=6}
+#FactoMineR PCA
+res.pca <- PCA(genind1,  graph = FALSE) #run PCA on genind object
+
+#Eigenvalue screeplot
+get_eig(res.pca) #extract eigenvalues and variances
+fviz_screeplot(res.pca, addlabels = TRUE, ylim = c(0, 50), ncp=50) #visualize eigenvector screeplot
+
+# Extract the results for variables
+var <- get_pca_var(res.pca)
+var
+head(var$coord)
+head(var$contrib)
+
+# PCA Graph of variables: default plot
+fviz_pca_var(res.pca, col.var = "black")
+
+# PCA graph of variables: Control variable colors using their contributions
+fviz_pca_var(res.pca, col.var="contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE # Avoid text overlapping
+             )
+
+# barplot of Contributions of variables to PC1
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 10)
+
+# barplot of Contributions of variables to PC2
+fviz_contrib(res.pca, choice = "var", axes = 2, top = 10)
+
+######
+
+# Extract the results for individuals
+ind <- get_pca_ind(res.pca)
+ind
+# Coordinates of individuals
+head(ind$coord)
+
+# FactoMineR PCA Graph of individuals
+# 1. Use repel = TRUE to avoid overplotting
+# 2. Control automatically the color of individuals using the cos2
+    # cos2 = the quality of the individuals on the factor map
+    # Use points only
+# 3. Use gradient color
+fviz_pca_ind(res.pca, col.ind = "cos2", 
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE # Avoid text overlapping (slow if many points)
+             )
+
+# FactoMineR PCA Biplot of individuals and variables
+fviz_pca_biplot(res.pca, repel = TRUE)
+
+# FactoMineR PCA of individuals 
+fviz_pca_ind(res.pca,
+             label = "none", # hide individual labels
+             habillage = genind1$pop, # color by groups
+             addEllipses = TRUE # Concentration ellipses
+             ) +
+  labs(x="PC1 (2.8%)", y="PC2 (1.3%)") +
+  rory_theme 
+```
+
+### **PCA: Adegenet plotted using factoextra**
+```{r, fig.width=9, fig.height=6}
+# Adegenet PCA using factoextra to plot
+fviz_pca_ind(genind1_pca,
+             label = "none", # hide individual labels
+             legend.title = "Population",
+             ) +
+  geom_point(aes(col = genind1$pop)) +
+  stat_ellipse(aes(col = genind1$pop)) +
+  labs(x="PC1 (2.8%)", y="PC2 (1.3%)") +
+  rory_theme +
+  scale_color_discrete(labels = c("Merced_1", "Merced_2", "Merced_3", "Merced_4", "Merced_5", "Merced_6", "Merced_7", "PEK", "AUR", "SCF", "DEL", "MC", "VGO", "AAF", "KANK", "CHE", "JCK", "TR", "STW", "PCL", "DMD", "KEY", "GTY"))
+
+# Adegenet PCA using factoextra to plot with legend within plot
+fviz_pca_ind(genind1_pca,
+             label = "none", # hide individual labels
+             legend.title = "Population",
+             ) +
+  geom_point(aes(col = genind1$pop)) +
+  stat_ellipse(aes(col = genind1$pop)) +
+  labs(x="PC1 (2.8%)", y="PC2 (1.3%)") +
+  rory_theme +
+  theme(legend.position = c(0.8, 0.25), legend.key.size = unit(0.5, "mm"), legend.text = element_text(size = 8)) +
+  scale_color_discrete(labels = c("Merced_1", "Merced_2", "Merced_3", "Merced_4", "Merced_5", "Merced_6", "Merced_7", "PEK", "AUR", "SCF", "DEL", "MC", "VGO", "AAF", "KANK", "CHE", "JCK", "TR", "STW", "PCL", "DMD", "KEY", "GTY")) 
+
+
+#set up to plot eigenvalues within pca plot
+#adegenet PCA plot object with legend within plot
+p1 <- fviz_pca_ind(genind1_pca,
+             label = "none", # hide individual labels
+             legend.title = "Population",
+             ) +
+  geom_point(aes(col = genind1$pop)) +
+  stat_ellipse(aes(col = genind1$pop)) +
+  labs(x="PC1 (2.8%)", y="PC2 (1.3%)") +
+  rory_theme +
+  theme(legend.position = c(0.9, 0.25), legend.key.size = unit(0.5, "mm"), legend.text = element_text(size = 8)) +
+  scale_color_discrete(labels = c("Merced_1", "Merced_2", "Merced_3", "Merced_4", "Merced_5", "Merced_6", "Merced_7", "PEK", "AUR", "SCF", "DEL", "MC", "VGO", "AAF", "KANK", "CHE", "JCK", "TR", "STW", "PCL", "DMD", "KEY", "GTY")) 
+
+#adegenet pca eigenvector screeplot
+p2 <- fviz_screeplot(genind1_pca, geom = "bar", addlabels = F, ylim = c(0, 3), ncp=50) + #visualize eigenvector screeplot
+  labs(x= "Eigenvalues", y = "Variance (%)", title = "PCA Eigenvalues") +
+  theme_classic(base_size = 11) +
+  scale_x_discrete(breaks = c(1, 25, 50))
+  
+p2
+
+#adegenet PCA plot with legend and eigenvalue screeplot within
+p1 + inset_element(p2, left = 0.7, bottom = 0.65, right = 1, top = 1.1)
+```
+
+
+### **IBD**
+#```{r}
+coord <- read.csv("c:/Users/Alexander Lopez/Documents/Lab/waterhemp_project/ibd_pop_locations.csv", header = T)
+class(coord)
+coord[,1:3]
+coord_ibd <- coord[,1:3]
+coord_ibd
+
+toto <- genind2genpop(genind1)
+Dgen <- dist.genpop(toto,method=2)
+Dgeo <- dist(coord_ibd)
+ibd <- mantel.randtest(Dgen,Dgeo)
+ibd
+Dgeo
+plot(ibd)
+
+#plot(Dgeo, Dgen)
+#abline(lm(Dgen~Dgeo))
+
+ggplot(mapping = aes(x= Dgeo, y= Dgen)) +
+  geom_point() +
+  stat_smooth(method = "lm", col = "red") +
+  rory_theme
+
+Dgeo
+
+geo_dist <- read.csv("c:/Users/Alexander Lopez/Documents/Lab/waterhemp_project/goe_dist_matrix.txt", header = F, sep = "\t")
+geo_dist
+class(geo_dist)
+as.dist(geo_dist)
+
+a <- log(geo_dist)
+a[,2:24]
+na.omit(a)
+coord_ibd2 <- coord[,2:3]
+coord_ibd2
+
+#geographic data frame - haversine distance 
+d.geo <-  distm(coord_ibd2, fun = distGeo)
+dist.geo <-  as.dist(d.geo)
+```
+
+
+
+
+
