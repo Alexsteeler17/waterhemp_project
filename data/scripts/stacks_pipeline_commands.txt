@@ -415,5 +415,38 @@ Run structure output through CLUMPAK program to handle label switching and genui
 
 ---------------------------------------------
 
-###Run PCA using R package adegenet for both structure model results: ADMIX & NOADMIX
-	- ADMIX: data/stacks/structure_2/admix/adegenet/
+###Run PCA using R package adegenet to compare with structure results:
+	- data/stacks/adegenet/
+	
+	
+	
+	
+	
+	
+	
+----------------------------------------------
+
+## Demographic Modeling - DIYABC with RF model selection
+
+### Need to first convert SNP data into DIYABC SNP format for use with DIYABC using program DIYABC provides for file conversion: vcf2DIYABC.py (available at https://github.com/loire/vcf2DIYABC.py.git)
+
+Clone repository to computer with git clone 
+	$ git clone https://github.com/loire/vcf2DIYABC.py.git
+
+		- Two data files are needed to create DIYABC SNP file: vcf of snp data & population file 
+		- Population file needs 3 columns with no headers: individual, sex, scenario pop 
+		
+Convert SNP data into vcf format for DIYABC SNP data file
+	- I was unsure how to convert my snp data to vcf format, so I re-ran the stacks populations program with the same filtering used for analyses to export snp data in vcf format 
+		(scripts: stacks/populations_structure_export_9_ref2_vcf.sh) 
+		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.95 -f p_value -t 8 --vcf --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_9/populations_9_vcf/
+	
+	- DIYABC accepts mising data (9) but not from loci where an entire population has missing data for 
+		- 
+	
+	
+	
+	
+	
+	
+	
