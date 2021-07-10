@@ -32,7 +32,7 @@ rory_theme <- theme_classic(base_size = 18) +
   theme(panel.spacing = unit(2, units = "lines")) + #spread out facets
   theme(strip.background = element_blank()) #remove border from facet labels
 ```
-### **Read in data**
+### **Read in data - genind1**
 ```{r}
 setwd("../../../../waterhemp_project/") #set working directory
 genind1 <- read.genepop("data/stacks/ref_map_pl_2/populations_9/populations.gen") #read in genepop file from STACKS to a genind object
@@ -249,6 +249,58 @@ p2
 #adegenet PCA plot with legend and eigenvalue screeplot within
 p1 + inset_element(p2, left = 0.7, bottom = 0.65, right = 1, top = 1.1)
 ```
+
+***
+
+### **Read in data (structure genetic units ) - genind2**
+```{r}
+# read in genepop file from stacks to a genind object
+genind2 <- read.genepop("../ref_map_pl_2/populations_9/populations_structure_subunits.gen")  #read in genepop file from STACKS to a genind object
+```
+
+
+### **Summary data**
+```{r}
+genind2_summary <- summary(genind2) #summary of STACKS genepop file as genind object
+names(genind2_summary) #print names of the genind object
+par(mfrow=c(2,2)) #function to set graphical parameters to output following plots like a facet with 2 rows and 2 columns
+plot(genind2_summary$n.by.pop, genind2_summary$pop.n.all, xlab="Population sample size", ylab="Number of alleles",main="Alleles numbers and sample sizes",type="p") #plot of genind object summary displaying scatterplot of allele numbers to population sample size
+barplot(genind2_summary$loc.n.all, ylab="Number of alleles",main="Number of alleles per locus") #barplot of genind object summary displaying the number of alleles at each locus
+barplot(genind2_summary$Hexp-genind2_summary$Hobs, main="Heterozygosity: expected-observed",ylab="Hexp - Hobs") #barplot of genind object summary displaying the difference between expected and observed heterozygosity
+barplot(genind2_summary$n.by.pop, main="Sample sizes per population",ylab="Number of genotypes",las=3) #barplot of genind object summmary displaying population sample sizes
+#PCA to summarize genetic diversity in sampled populations
+```
+
+
+### **PCA (adegenet): genind2 - structure genetic subunits**
+```{r}
+sum(is.na(genind2$tab)) #calculates how many missing data (NA) values are present in data, missing data needs to be replaced
+genind2_adjusted_NA <- scaleGen(genind2, NA.method="mean") #replaces NA values with mean allele frequency
+class(genind2_adjusted_NA) #checks class of transformed data
+dim(genind2_adjusted_NA) #displays dimensions of transformed data
+genind2_adjusted_NA[1:5,1:5] #displays first 5 columns and rows of transformed data
+#PCA: adegenet
+genind2_pca <- dudi.pca(genind2_adjusted_NA, cent=FALSE, scale=FALSE, scannf=FALSE, nf=3) #compute PCA of transformed genind1 data adjusted to replace NA values with mean allele frequency
+barplot(genind2_pca$eig[1:50], main="PCA eigenvalues", col=heat.colors(50)) #barplot displaying first 50 eigenvalues computed from PCA
+genind2_pca #information output from PCA
+```
+
+### **PCA (adegenet): genind2 plotting with factoextra**
+```{r, fig.width=9, fig.height=6}
+# Adegenet PCA using factoextra to plot
+fviz_pca_ind(genind2_pca,
+             label = "none", # hide individual labels
+             legend.title = "Population") + # set legend title
+  geom_point(aes(col = genind2$pop)) + # create pca scatterplot colored by population
+  stat_ellipse(aes(col = genind2$pop)) + # add 95% CI elipse colored by population
+  labs(x="PC1 (2.8%)", y="PC2 (1.3%)") + # add axis labels
+  rory_theme +
+  scale_color_manual(labels = c("Merced", "Eastern", "Western", "Admixed"), values = c("green", "blue", "red", "purple")) + # add population legend labels and colors 
+  scale_x_continuous(trans = "reverse", labels = c("20", "10", "0", "-10", "-20", "-30")) #reverse x-axis to match previous pca plots and adjust tick labels
+  
+```
+
+
 
 
 ### **IBD**
