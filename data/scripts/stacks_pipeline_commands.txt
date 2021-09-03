@@ -41,10 +41,10 @@ Version: 2.54
 								pool2
 								pool3
 
----------------------------------------------------------------------
+===================================================================================================
 
 ## Stacks Pipeline Commands
-#### Demultiplex samples 
+#### Demultiplex samples: process_radtags
 Demultiplex and clean raw fastq files using Stacks process_radtags plugin (Stacks Pipeline, Stacks/2.54-IGB-gcc-8.2.0)
 (pools demultiplexed separately, these were used for downstream analyses)
 	Pool1: (script: stacks/process_radtags_pool1.sh)
@@ -63,7 +63,7 @@ Demultiplex and clean raw fastq files using Stacks process_radtags plugin (Stack
 		$ process_radtags -p data/seqs/Project_KWKW_L3_H2159P_Waselkov/raw_seqs/ -o data/stacks/reads/ -b data/seqs/Project_KWKW_L3_H2159P_Waselkov/HiSeq2159_barcode_key_stacks.txt --inline_index -e ApeKI -r -c -q 2>&1 | tee data/stacks/logs/Log_process_radtags_$(date +%Y%m%d-%Hh%Mm%Ss).txt
 		
 		
-		
+---------------------------------------------------------------------------------------------------		
 #### Align de-multiplexed reads to reference genome (Burrows-Wheeler Aligner, BWA/0.7.17-IGB-gcc-8.2.0)
 Construct reference genome FM-index using BWA
 		(script: bwa/bwa_index.sh)
@@ -243,9 +243,10 @@ Run ref_map.pl wrapper to execute gstacks and populations programs (results in d
 		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.95 -f p_value -t 8 --structure --genepop --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_9/
 			- these filtering parameters were used for downstream analyses 
 			
-----------------------------------------------
+===================================================================================================
+# STRUCTURE 2.3.4 Analyses
 
-### Run STRUCTURE: ADMIX & NOADMIX models
+### Run STRUCTURE - ALL POPULATIONS: ADMIX & NOADMIX models - MERCED ONLY: ADMIX model 
 Create STRUCTURE configuration files mainparams and extraparams: ADMIX model (data/stacks/structure_2/admix/)
 	mainparams:
 		#define OUTFILE /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/admix/output_1
@@ -315,7 +316,7 @@ Run STRUCTURE with various values of K (1-20): do 5 runs per K (admix) (all requ
 Determine optimum value of K using structureharvester with Evanno et. al. deltaK method (http://taylor0.biology.ucla.edu/structureHarvester/)
 	- input zip file containing structure output of all runs for each K
 		- waterhemp_project/data/stacks/structure_2/admix/structure_harvester/structure_out_admix.zip
-	- K=2 was most likely for this dataset (results in /data/stacks/structure_2/admix/structure_harvester/)
+	- K=2 was most likely for complete dataset (results in /data/stacks/structure_2/admix/structure_harvester/)
 
 Run structure output through CLUMPAK program to handle label switching and genuine multimodality and output graphs		
 	- Standalone program through command line: Main Pipeline (Run for K=2 structure results), (must be run from directory where CLUMPAK is installed: Documents/CLUMPAK/CLUMPAK)
@@ -328,7 +329,7 @@ Run structure output through CLUMPAK program to handle label switching and genui
 		- Fullsearch algorithm 
 			$ perl CLUMPAK.pl --id 1 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/fullsearch_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/admix/structure_out_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/admix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 1
 		
-		
+--------------------------------------------------------------------------------------------------		
 		
 Create STRUCTURE configuration files mainparams and extraparams: NOADMIX model
 	mainparams 
@@ -399,7 +400,7 @@ Run STRUCTURE with various values of K (1-20): do 5 runs per K (noadmix) (all re
 Determine optimum value of K using structureharvester with Evanno et. al. deltaK method (http://taylor0.biology.ucla.edu/structureHarvester/)
 	- input zip file containing structure output of all runs for each K
 		- data/stacks/structure_2/noadmix/structureharvester/structure_out_noadmix
-	- K=2 most likely clustering for this data 
+	- K=2 most likely clustering for complete data 
 	
 Run structure output through CLUMPAK program to handle label switching and genuine multimodality and output graphs
 	- Run program using the Main Pipeline
@@ -413,36 +414,497 @@ Run structure output through CLUMPAK program to handle label switching and genui
 		- Fullsearch algorithm 
 			$ perl CLUMPAK.pl --id 1 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/fullsearch_K2/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/structure_out_noadmix_K2_runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/noadmix/clumpak/CLUMPAK_distruct_labels.txt --clumppsearchmethod 1
 
----------------------------------------------
+--------------------------------------------------------------------------------------------------
 
-###Run PCA using R package adegenet to compare with structure results:
+### Run STRUCTURE - MERCED ONLY: ADMIX
+ADMIX
+Create STRUCTURE configuration files mainparams and extraparams: ADMIX model (data/stacks/structure_2/merced_admix/)
+	mainparams:
+		#define OUTFILE /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/merced_admix/output_1
+		#define INFILE /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/merced_admix/populations_merced.structure
+		#define NUMINDS 145
+		#define NUMLOCI 2314
+		#define LABEL 1
+		#define POPDATA 1
+		#define POPFLAG 0
+		#define LOCDATA 0
+		#define PHENOTYPE 0
+		#define MARKERNAMES 1
+		#define MAPDISTANCES 0
+		#define ONEROWPERIND 0
+		#define PHASEINFO 0
+		#define PHASED 0
+		#define RECESSIVEALLELES 0
+		#define EXTRACOLS 0
+		#define MISSING -9
+		#define PLOIDY 2
+		#define MAXPOPS 1
+		#define BURNIN 100000
+		#define NUMREPS 500000
+
+
+		#define NOADMIX 0
+		#define LINKAGE 0
+		#define USEPOPINFO 0
+
+		#define LOCPRIOR 0
+		#define INFERALPHA 1
+		#define ALPHA 1.0
+		#define POPALPHAS 0 
+		#define UNIFPRIORALPHA 1 
+		#define ALPHAMAX 10.0
+		#define ALPHAPROPSD 0.025
+
+
+		#define FREQSCORR 1 
+		#define ONEFST 0
+		#define FPRIORMEAN 0.01
+		#define FPRIORSD 0.05
+
+
+		#define INFERLAMBDA 0 
+		#define LAMBDA 1.0
+		#define COMPUTEPROB 1 
+		#define PFROMPOPFLAGONLY 0 
+		#define ANCESTDIST 0 
+		#define STARTATPOPINFO 0 
+		#define METROFREQ 10
+
+
+		#define UPDATEFREQ 1
+		
+	extraparams:
+		(this file is empty, info for this can go in the mainparams file)
+		
+Run STRUCTURE with various values of K (1-7): do 5 runs per K (admix) (all required structure files should be in same folder)
+	(scripts: structure/structure_merced_K<1-7>_5runs.sh)
+	K=<1-7>; insert the value of K you want betweeen "<>" marks and do not include those marks
+		$ for i in 1 2 3 4 5
+		do
+		structure -m /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/merced_admix/mainparams.txt -e /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/merced_admix/extraparams.txt -i /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/merced_admix/populations_merced.structure -o /home/a-m/csuf_lopez/waterhemp_project/data/stacks/structure_2/merced_admix/merced_K<1-20>_run$i -K <1-7>
+		done 
+
+Determine optimum value of K using structureharvester with Evanno et. al. deltaK method (http://taylor0.biology.ucla.edu/structureHarvester/)
+	- input zip file containing structure output of all runs for each K
+		- data/stacks/structure_2/merced_admix/structure_harvester/structure_out_merced_admix.zip 
+	- K=3 most likely clustering for MERCED data (results in data/stacks/structure_2/merced_admix/structure_harvester/)
+
+Run structure output through CLUMPAK program to handle label switching and genuine multimodality and output graphs
+	- Run program using the Main Pipeline
+		- input file is .zip of K=3 runs 1-5
+		- labels file has two columns: population number and name 
+	- Standalone program through command line: Main Pipeline (Run for K=3) (must be run from directory where CLUMPAK is installed: Documents/CLUMPAK/CLUMPAK)
+		- LargeK Greedy algorithm 
+			$ perl CLUMPAK.pl --id 3 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/largeK_greedy_K3/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/structure_out_merced_admix_K3_5runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/CLUMPAK_distruct_labels_merced.txt --clumppsearchmethod 3 --clumpprepeats 2000
+			
+		- Greedy algorithm 
+			$ perl CLUMPAK.pl --id 2 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/greedy_K3/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/structure_out_merced_admix_K3_5runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/CLUMPAK_distruct_labels_merced.txt --clumppsearchmethod 2 --clumpprepeats 2000
+			
+		- Fullsearch algorithm 
+			$ perl CLUMPAK.pl --id 1 --dir ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/fullsearch_K3/ --file ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/structure_out_merced_admix_K3_5runs.zip --labels ../../Lab/waterhemp_project/data/stacks/structure_2/merced_admix/clumpak/CLUMPAK_distruct_labels_merced.txt --clumppsearchmethod 1
+
+==================================================================================================
+# PCA 
+
+###Run PCA using R package adegenet to compare with structure results: (R 4.0.4, adegenet 2.1.3)
 	- data/stacks/adegenet/
+	- read in genepop snp data to genind object
+		- have to change ".genepop" extension to ".gen"
+	- calculate summary statistics
+	- run PCA 
+		- ALL POPULATIONS
+		- MERCED ONLY 
 	
 	
-	
-	
-	
-	
-	
-----------------------------------------------
+==================================================================================================
+# Arlequin 3.5.2.2 - AMOVA & Mantel test for IBD
 
-## Demographic Modeling - DIYABC with RF model selection
+###Run AMOVA using the program Arlequin: (Arlequin 3.5.2.2 - http://cmpg.unibe.ch/software/arlequin35/)
+	- Excoffier, L. and H.E. L. Lischer (2010) Arlequin suite ver 3.5: A new series of programs to perform
+	population genetics analyses under Linux and Windows. Molecular Ecology Resources. 10: 564-567.
+	- Graphics generated with R 3.5.0
+	
+First convert SNP data from genepop format into Arlequin format using PGDSpider 2.1.1.5
+	- input SNP data file in genepop format	(first save with .txt extension)
+		data/stacks/arlequin/waterhemp/populations.snps.genepop.txt
+	- Output file in Arlequin STANDARD format 
+		data/stacks/arlequin/waterhemp/wh_aq_data.arp
+	- PGDSpider SPID file: PGDSpider_2.1.1.5/Genepop_to_Arlequin.spid
+		- Genepop parser paramters:
+			data type: SNP
+		- Arlequin writer parameters:
+			data type: STANDARD
+			Convert to represent ancestral state: NO 
+
+Set genetic structure using 'Structure editor' shortcut
+	- Complete dataset with all 23 populations was analyzed under 2 different genetic structures
+		- AMOVA 1 (wh_aq_data.arp): 4 groups - STRUCTURE clustering  
+		- AMOVA 2 (wh_aq_data_2.arp): 2 groups - Merced and Midwest
+
+	- AMOVA 1: 4 groups - STRUCTURE clustering
+		- load project into Arlequin: wh_aq_data.arp 
+		- assign group numbers to each population
+			1: West (CHE, STW, TR, KEY, GTY)
+			2: East (PEK, DEL)
+			3: Admixed (AAF, KANK, VGO, SCF, AUR, JCK, PCL, DMD, MC)
+			4: Merced (Merced 1-7)
+		- hit 'update project' button to apply structure to .arp file 
+	
+	- AMOVA 2: 2 groups - Merced & Midwest
+		- load project into Arlequin: wh_aq_data_2.arp 
+		- assign group numbers to each population
+			1: Merced
+			2: Midwest 
+		- hit 'update project' button to apply structure to .arp file 
+	
+Set analyses settings
+	- analyses to run with wh_aq_data.arp and wh_aq_data_2.arp:
+		- AMOVA, Population comparisons, Population differentiation, Molecular diversity indices
+		- AMOVA parameters:
+			- locus by locus AMOVA
+				- include individual level
+				- compute population FIS's 
+				- No. of permutations: 16000
+				- compute distance matrix (no. of different alleles)
+				- print distance matrix
+		- Population comparison parameters	
+			- compute pairwise FST
+				- slatkin's distance
+				- no. of permutations: 5000
+				- sigificance level: 0.05
+				- compute distace matrix (no. different alleles)
+		- Population differentiation parameters
+			- exact test of population differentiation 
+				- no. of steps in markov chain: 100000
+				- no. dememorization steps: 10000
+				- generate histogram and table
+					- signiicance level 0.05
+		- Molecular diversity indices parameters 
+			- standard diversity indices
+				- compute missing data frequencies
+				- output sample allele frequencies for all loci
+			- molecular diversity indices
+				- no. of different alleles
+			
+Run analyses
+	- hit 'Start' button to run analyses
+	- once complete, hit 'Rcmd' button to generate graphics with R 3.5.0
+	- results output into folder with name of project and '.res' extension 
+		data/stacks/arlequin/waterhemp/wh_aq_data.res
+		data/stacks/arlequin/waterhemp/wh_aq_data_2.res
+
+---------------------------------------------------------------------------------------------------	
+### Run Mantel test: MERCED
+
+First create project file by subsetting SNP data to include only Merced populations 
+	- remove midwestern populations from wh_aq_data.arp 
+	- change sample numbers from 23 to 7
+	- remove genetic structure section
+		data/stacks/arlequin/waterhemp/wh_aq_data_merced.arp 
+		
+Next, create pairwise geographic distance matrix for use in Mantel test 
+	- Geographic distance matrix generator 1.2.3
+		Ersts,P.J.[Internet] Geographic Distance Matrix Generator(version 1.2.3). American Museum of Natural History, Center for Biodiversity and Conservation. Available from http://biodiversityinformatics.amnh.org/open_source/gdmg. Accessed on 2021-8-26 .
+		- input: merced population file with populations and coordinates
+			data/stacks/arlequin/waterhemp/merced_pop_loactions.txt 
+		- output: pairwise distance matrix in Kilometers
+			data/stacks/arlequin/waterhemp/merced_geo_dist_matrix.txt 
+		- this will be pasted into Mantel settings in project file under 'DistMatMantel={}'
+		
+Enter Mantel test settings into project file:
+	[[Mantel]]
+		MatrixSize=7
+		Matrixnumber=2
+		YMatrix="slatkinlinearfst"
+		YMatrixLabels= {
+			"Merced_1"
+			"Merced_2"
+			"Merced_3"
+			"Merced_4"
+			"Merced_5"
+			"Merced_6"
+			"Merced_7"
+		}
+		DistMatMantel={
+		0.00
+		7.98	0.00
+		17.23	9.40	0.00
+		19.49	12.10	3.64	0.00
+		18.54	11.65	4.90	2.29	0.00
+		15.50	7.55	2.26	5.83	6.70	0.00
+		19.86	11.89	3.24	5.07	7.13	4.36	0.00
+		}
+		UsedYMatrixLabels= {
+			"Merced_1"
+			"Merced_2"
+			"Merced_3"
+			"Merced_4"
+			"Merced_5"
+			"Merced_6"
+			"Merced_7"
+		}
+	
+Set genetic structure using 'Structure editor' shortcut
+	- 1 group: Merced 1-7
+	- load project into Arlequin: wh_aq_data_merced.arp 
+		- assign group numbers to each population
+			1: Merced 1-7
+		- hit 'update project' button to apply structure to .arp file
+		
+Set analyses settings
+	- analyses to run with wh_aq_data_merced.arp:
+		- AMOVA, Population comparisons, Population differentiation, Molecular diversity indices, Mantel test
+		- AMOVA parameters:
+			- locus by locus AMOVA
+				- include individual level
+				- compute population FIS's 
+				- No. of permutations: 16000
+				- compute distance matrix (no. of different alleles)
+				- print distance matrix
+		- Population comparison parameters	
+			- compute pairwise FST
+				- slatkin's distance
+				- no. of permutations: 5000
+				- sigificance level: 0.05
+				- compute distace matrix (no. different alleles)
+		- Population differentiation parameters
+			- exact test of population differentiation 
+				- no. of steps in markov chain: 100000
+				- no. dememorization steps: 10000
+				- generate histogram and table
+					- signiicance level 0.05
+		- Molecular diversity indices parameters 
+			- standard diversity indices
+				- compute missing data frequencies
+				- output sample allele frequencies for all loci
+			- molecular diversity indices
+				- no. of different alleles
+		- Mantel test parameters
+			- compute correlation between distance matrices
+				- no. of permutations for mantel test: 1000
+			
+Run analyses
+	- hit 'Start' button to run analyses
+	- once complete, hit 'Rcmd' button to generate graphics with R 3.5.0
+	- results output into folder with name of project and '.res' extension
+		data/stacks/arlequin/waterhemp/wh_aq_data_merced.res
+		
+Plot pairwise genetic vs geographic distance matrices used in Mantel test against eachother using R 4.0.4
+	- copy and paste pairwise genetic and geographic matrices used in mantel test (output in results) into excel file and convert into long format (2 columns: FST and Geo); save as '.csv' file 
+		data/stacks/arlequin/waterhemp/mantel_ibd_merced.csv
+	- Read mantel_ibd_merced.csv into R 4.0.4 and plot 
+		data/stacks/arlequin/arlequin_mantel.Rmd
+
+---------------------------------------------------------------------------------------------------
+### Run Mantel test: MIDWEST
+
+First create project file by subsetting SNP data to include only Midwet populations 
+	- remove merced populations from wh_aq_data.arp 
+	- change sample numbers from 23 to 16
+	- remove genetic structure section
+		data/stacks/arlequin/waterhemp/wh_aq_data_midwest.arp 
+		
+Next, create pairwise geographic distance matrix for use in Mantel test 
+	- Geographic distance matrix generator 1.2.3
+		Ersts,P.J.[Internet] Geographic Distance Matrix Generator(version 1.2.3). American Museum of Natural History, Center for Biodiversity and Conservation. Available from http://biodiversityinformatics.amnh.org/open_source/gdmg. Accessed on 2021-8-26 .
+		- input: midwest population file with populations and coordinates
+			data/stacks/arlequin/waterhemp/midwest_pop_loactions.txt 
+		- output: pairwise distance matrix in Kilometers
+			data/stacks/arlequin/waterhemp/midwest_geo_dist_matrix.txt 
+		- this will be pasted into Mantel settings in project file under 'DistMatMantel={}'
+		
+Enter Mantel test settings into project file:
+	[[Mantel]]
+		MatrixSize=16
+		Matrixnumber=2
+		YMatrix="slatkinlinearfst"
+		YMatrixLabels= {
+			"PEK"
+			"AUR"
+			"SCF"
+			"DEL"
+			"MC"
+			"VGO"
+			"AAF"
+			"KANK"
+			"CHE"
+			"JCK"
+			"TR"
+			"STW"
+			"PCL"
+			"DMD"
+			"KEY"
+			"GTY"
+		}
+		DistMatMantel={
+		0.00
+		440.44	0.00
+		611.42	383.81	0.00
+		732.18	521.12	139.74	0.00
+		527.88	174.06	220.65	352.63	0.00
+		236.17	223.27	512.78	650.41	357.48	0.00
+		249.31	504.29	790.34	923.60	648.01	290.54	0.00
+		258.85	296.10	352.80	474.40	305.43	235.55	460.71	0.00
+		768.63	1132.59	1379.26	1500.54	1267.64	913.87	628.98	1027.35	0.00
+		568.03	683.30	1036.70	1175.78	853.60	528.22	320.54	746.84	622.53	0.00
+		568.35	1003.76	1146.73	1247.01	1094.50	785.28	574.92	804.56	406.14	760.63	0.00
+		452.17	127.33	258.56	397.35	76.97	282.69	572.94	240.67	1190.99	788.65	1019.64	0.00
+		554.34	132.43	314.63	440.15	98.97	351.70	636.29	364.33	1264.03	808.28	1122.11	126.23	0.00
+		476.07	400.06	181.69	265.69	294.51	443.82	688.23	227.53	1241.04	968.45	981.56	281.95	390.57	0.00
+		207.48	380.92	674.07	809.54	524.68	167.39	123.94	359.65	751.71	388.92	664.35	450.08	512.68	584.66	0.00
+		448.82	125.96	260.63	399.54	80.38	279.40	569.63	237.96	1187.60	785.83	1016.32	3.41	128.38	281.85	446.79	0.00
+		}
+		UsedYMatrixLabels= {
+			"PEK"
+			"AUR"
+			"SCF"
+			"DEL"
+			"MC"
+			"VGO"
+			"AAF"
+			"KANK"
+			"CHE"
+			"JCK"
+			"TR"
+			"STW"
+			"PCL"
+			"DMD"
+			"KEY"
+			"GTY"
+		}
+	
+Set genetic structure using 'Structure editor' shortcut
+	- 1 group: Midwest (16)
+	- load project into Arlequin: wh_aq_data_midwest.arp 
+		- assign group numbers to each population
+			1: Midwest (16)
+		- hit 'update project' button to apply structure to .arp file
+		
+Set analyses settings
+	- analyses to run with wh_aq_data_midwest.arp:
+		- AMOVA, Population comparisons, Population differentiation, Molecular diversity indices, Mantel test
+		- AMOVA parameters:
+			- locus by locus AMOVA
+				- include individual level
+				- compute population FIS's 
+				- No. of permutations: 16000
+				- compute distance matrix (no. of different alleles)
+				- print distance matrix
+		- Population comparison parameters	
+			- compute pairwise FST
+				- slatkin's distance
+				- no. of permutations: 5000
+				- sigificance level: 0.05
+				- compute distace matrix (no. different alleles)
+		- Population differentiation parameters
+			- exact test of population differentiation 
+				- no. of steps in markov chain: 100000
+				- no. dememorization steps: 10000
+				- generate histogram and table
+					- signiicance level 0.05
+		- Molecular diversity indices parameters 
+			- standard diversity indices
+				- compute missing data frequencies
+				- output sample allele frequencies for all loci
+			- molecular diversity indices
+				- no. of different alleles
+		- Mantel test parameters
+			- compute correlation between distance matrices
+				- no. of permutations for mantel test: 1000
+			
+Run analyses
+	- hit 'Start' button to run analyses
+	- once complete, hit 'Rcmd' button to generate graphics with R 3.5.0
+	- results output into folder with name of project and '.res' extension
+		data/stacks/arlequin/waterhemp/wh_aq_data_midwest.res
+		
+Plot pairwise genetic vs geographic distance matrices used in Mantel test against eachother using R 4.0.4
+	- copy and paste pairwise genetic and geographic matrices used in mantel test (output in results) into excel file and convert into long format (2 columns: FST and Geo); save as '.csv' file 
+		data/stacks/arlequin/waterhemp/mantel_ibd_midwest.csv
+	- Read mantel_ibd_merced.csv into R 4.0.4 and plot 
+		data/stacks/arlequin/arlequin_mantel.Rmd	
+	
+==================================================================================================
+# Demographic Modeling (DIYABC 2.1.0) with RF model selection (abcrf 1.8.1)
 
 ### Need to first convert SNP data into DIYABC SNP format for use with DIYABC using program DIYABC provides for file conversion: vcf2DIYABC.py (available at https://github.com/loire/vcf2DIYABC.py.git)
 
-Clone repository to computer with git clone 
+Clone repository to computer into folder where DIYABC is installed with git clone (../diyabc-2.1.0-win32/vcf2DIYABC.py/)
 	$ git clone https://github.com/loire/vcf2DIYABC.py.git
 
 		- Two data files are needed to create DIYABC SNP file: vcf of snp data & population file 
 		- Population file needs 3 columns with no headers: individual, sex, scenario pop 
 		
 Convert SNP data into vcf format for DIYABC SNP data file
-	- I was unsure how to convert my snp data to vcf format, so I re-ran the stacks populations program with the same filtering used for analyses to export snp data in vcf format 
+	- I was unsure how to convert my snp data to vcf format (could be done in PGDSpider), so I re-ran the stacks populations program with the same filtering used for analyses to export snp data in vcf format 
 		(scripts: stacks/populations_structure_export_9_ref2_vcf.sh) 
 		$ populations -P data/stacks/ref_map_pl_2/ --popmap data/stacks/info/HiSeq2159_stacks_population_map.txt --smooth -p 19 -r 0.95 -f p_value -t 8 --vcf --write-single-snp --ordered-export -O data/stacks/ref_map_pl_2/populations_9/populations_9_vcf/
+
+Create populations file 
+	- 3 columns: Individual, sex, population (no header, seperated by a single space)
+		- I set sex for all individuals to missing (9) since we don't have data for midwest
+		- Populations for the file were set to represent the genetic subunits represented by structure output 
+			- 3 genetic subunits: Western, Eastern, Admixed
+				- Western (Pop1): CHE, TR, STW, KEY, GTY
+				- Eastern (Pop2): PEK, DEL
+				- Admixed (Pop3): AUR, SCF, MC, VGO, AAF, KANK, JCK, PCL, DMD
+			- Genetic subunits selected based on structure cluster assignment scores (K=2): Western(>0.85 cluster2), Eastern(>0.85 cluster1), Admixed(0.15-0.85 cluster1/2)
+			- Merced samples grouped as Pop4
+
+Run vcf2diyabc.py to convert snp vcf into DIYABC format 
+	- enter vcf2diyabc repository directory in command line 
+	- switch to branch python3.x to work with python 3 versions
+	- run program to convert vcf snp to diyabc snp format
+		$ python vcf2diyabc.py 
+			- enter the snp vcf file (populations.snps.vcf) and the diyabc population file (vcf_sex_population.txt)
+			- outputs diyabc snp file: populations.snps.DIYABC.snp
+	- change missing values (9) in DIYABC snp file to "2"
+		- DIYABC does not accept loci in which a population has completely missing data, 2 represents homologous for refernce allele
+		- use find and replace in notepad++
+			- 55,508 missing values replaced
+		- new diyabc snp file: populations2.snps.DIYABC.snp
+	- set header line in diyabc snp file	
+		- title <NM=1.0NF> <MAF=hudson>
+		
+Open DIYABC and start new SNP project
+	- Import diyabc snp file: populations2.snps.DIYABC.snp
+	- Set DIYABC historical models/scenarios, 12 models (3 single introduction & 9 with second introduction)
+		- Model 1:
+			N1 N2 N3 N4
+			0 sample 1
+			0 sample 2
+			0 sample 3
+			0 sample 4
+			t1-db VarNe 4 N4b
+			t1 merge 1 4
+			t2 split 3 1 2 ra
+			t3 merge 1 2
+		
+		- Model 2:
+			N1 N2 N3 N4
+			0 sample 1
+			0 sample 2
+			0 sample 3
+			0 sample 4
+			t1 merge 2 4
+			t2 split 3 1 2 ra
+			t3 merge 1 2
+
+		- Model 3:
+			N1 N2 N3 N4
+			0 sample 1
+			0 sample 2
+			0 sample 3
+			0 sample 4
+			t1 merge 3 4
+			t2 split 3 1 2 ra
+			t3 merge 1 2
+
+
+
+
+
 	
-	- DIYABC accepts mising data (9) but not from loci where an entire population has missing data for 
-		- 
 	
 	
 	
