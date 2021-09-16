@@ -71,6 +71,85 @@ ggplot(data = midwest_ibd, mapping = aes(x=ln_km, y=Fst)) +
   rory_theme
 ```
 
+***
 
+# **AMOVA Pie Charts - Arlequin 3.5.0**
+
+### **AMOVA - STRUCTURE Genetic Subunits**
+```{r}
+amova1 <- data.frame("Variation_Source" = c("AG", "APWG", "AIWP", "WI"), "SS" = c(182.667, 167.754, 919.614, 866.000), "Variance_Components" = c(0.43662, 0.21403, 0.23642, 3.04716), "Percentage_Variation" = c(11.10, 5.44, 6.01, 77.45))
+
+ggplot(amova1, aes(x = "", y = Percentage_Variation, fill = Variation_Source)) +
+  geom_col() +
+  coord_polar(theta = "y") +
+  rory_theme
+
+ggplot(amova1, aes(x = "", y = Percentage_Variation, fill = Variation_Source)) +
+  geom_col() +
+  coord_polar("y", start = 0) +
+  theme_void()
+
+ggplot(amova1, aes(x = "", y = Percentage_Variation, fill = Variation_Source)) +
+  geom_col(width=1, color="black") +
+  coord_polar("y", start = 0) +
+  theme_void(base_size = 18) +
+  scale_fill_manual(values = c("#AED6F1", "#85C1E9", "#5DADE2", "#3498DB")) +
+  labs(fill = "Variation Source", title = "Percentages of Molecular Variance")
+  
+  
+
+####
+amova1b <- amova1 %>% 
+  arrange(desc(Variation_Source)) %>%
+  mutate(prop = Percentage_Variation / sum(amova1$Percentage_Variation) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+
+ggplot(amova1b, aes(x = "", y = Percentage_Variation, fill = Variation_Source)) +
+  geom_col(width=1, color="black") +
+  coord_polar("y", start = 0) +
+  theme_void(base_size = 18) +
+  geom_text(aes(y = ypos, label = prop), color = "black", size=6) +
+  scale_fill_brewer(palette="Blues") + 
+  labs(fill = "Variation Source", title = "AMOVA Pie Chart")
+```
+
+
+### **AMOVA - Midwest vs Merced**
+
+### **AMOVA - Merced**
+```{r}
+amova2 <- data.frame("Variation_Source" = c("APWG", "AIWP", "WI"), "SS" = c(342.049, 2406.769, 2251.500), "Variance_Components" = c(0.96074, 0.96766, 15.66370), "Percentage_Variation" = c(5.46, 5.50, 89.04))
+
+ggplot(amova2, aes(x = "", y = Percentage_Variation, fill = Variation_Source)) +
+  geom_col(width=1, color="black") +
+  coord_polar("y", start = 0) +
+  theme_void(base_size = 18) +
+  scale_fill_manual(values = c("#85C1E9", "#5DADE2", "#3498DB")) +
+  labs(fill = "Variation Source", title = "Percentages of Molecular Variance")
+
+
+ggplot(amova2, aes(x = "", y = Percentage_Variation, fill = Variation_Source)) +
+  geom_col(width=1, color="black") +
+  coord_polar("y", start = 0) +
+  theme_void(base_size = 18) +
+  scale_fill_manual(values = c("#85C1E9", "#5DADE2", "#3498DB")) +
+  labs(fill = "Variation Source", title = "Percentages of Molecular Variance", subtitle = "Merced")
+
+###
+amova2b <- amova2 %>% 
+  arrange(desc(Variation_Source)) %>%
+  mutate(prop = Percentage_Variation / sum(amova2$Percentage_Variation) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop)
+
+ggplot(amova2b, aes(x = "", y = Percentage_Variation, fill = Variation_Source)) +
+  geom_col(width=1, color="black") +
+  coord_polar("y", start = 0) +
+  theme_void(base_size = 18) +
+  geom_text(aes(y = ypos, label = prop), color = "black", size=6) +
+  scale_fill_manual(values = c("#85C1E9", "#5DADE2", "#3498DB")) +
+  labs(fill = "Variation Source", title = "AMOVA Pie Chart", subtitle = "Merced")
+```
+
+### **AMOVA - Midwest**
 
 
