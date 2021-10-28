@@ -1,0 +1,238 @@
+---
+title: "PCA_adegenet_short"
+author: "Alexander Lopez"
+date: "10/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+# **Project Info**  
+- **Project objective:** Conduct Principal Component Analysis on the waterhemp dataset  
+- **Project goal:** Visualize genetic clustering for the inference of population structure within total dataset and Merced dataset alone, also infer source of Merced waterhemp infestations  
+- **Details:**  
+  + 3 PCAs conducted:  
+    ++ Complete datset (285 individuals, 23 populations)  
+    ++ Structure subunits (285 individuals, 4 populations: West, East, Admixed, Merced)  
+    ++ Merced dataset (145 individuals, 7 populations)  
+  + PCA conducted with package adegenet 2.1.3 (Jombart, 2008)  
+  + R version: 4.0.4  
+
+```{r, include=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(adegenet)
+library(ade4)
+library(factoextra)
+library(pegas)
+
+rory_theme <- theme_classic(base_size = 18) + 
+  theme(axis.title.y=element_text(vjust=1.5), axis.title.x=element_text(vjust=0.2)) + #adjust axis title position
+  theme(plot.margin = unit(c(.3,.3,.6,.6), "cm"), line = element_line(size = 1.25)) + #adjust plot margins and line element size
+  theme(axis.line.x = element_line(colour = "black"), axis.line.y = element_line(colour = "black")) + #draw x and y axes
+  theme(axis.text.x = element_text(margin=unit(c(0.5,0.5,0.5,0.5), "cm")), axis.text.y = element_text(margin=unit(c(0.5,0.5,0.5,0.5), "cm"))) + #put margins around axis labels so that nothing overlaps
+  theme(axis.ticks.length =unit(-0.3, "cm")) + # move tickmarks inside the axes
+  theme(panel.spacing = unit(2, units = "lines")) + #spread out facets
+  theme(strip.background = element_blank()) #remove border from facet labels
+```
+***  
+  
+# **PCA: Complete Dataset**
+### **Read in data - genind1**  
+- Genetic data was read into R in Genepop format as genind object  
+  - file extension ".genepop" was changed to ".gen"  
+```{r}
+setwd("../../../../waterhemp_project/") #set working directory
+genind1 <- read.genepop("data/stacks/ref_map_pl_2/populations_9/populations.gen") #read in genepop file from STACKS to a genind object
+```
+
+### **Data Summary**  
+```{r}
+genind1_summary <- summary(genind1) #summary of STACKS genepop file as genind object
+
+names(genind1_summary) #print names of the genind object
+
+par(mfrow=c(2,2)) #function to set graphical parameters to output following plots like a facet with 2 rows and 2 columns
+
+plot(genind1_summary$n.by.pop, genind1_summary$pop.n.all, xlab="Population sample size", ylab="Number of alleles",main="Alleles numbers and sample sizes",type="p") #plot of genind object summary displaying scatterplot of allele numbers to population sample size 
+
+barplot(genind1_summary$loc.n.all, ylab="Number of alleles",main="Number of alleles per locus") #barplot of genind object summary displaying the number of alleles at each locus
+
+barplot(genind1_summary$Hexp-genind1_summary$Hobs, main="Heterozygosity: expected-observed",ylab="Hexp - Hobs") #barplot of genind object summary displaying the difference between expected and observed heterozygosity
+
+barplot(genind1_summary$n.by.pop, main="Sample sizes per population",ylab="Number of genotypes",las=3) #barplot of genind object summmary displaying population sample sizes
+```
+
+### **Bartlett Test: Test of Homogeneity of Variances**
+```{r}
+bartlett.test(list(genind1_summary$Hexp, genind1_summary$Hobs)) #Bartlett Test of Homogeneity of Variances, Performs Bartlett's test of the null that the variances in each of the groups (samples) are the same
+
+t.test(genind1_summary$Hexp, genind1_summary$Hobs, pair=T, var.equal=TRUE, alter="greater") #Paired t-test to determine if observed and expected heterozygosity are the same
+```
+
+### **HWE**
+```{r}
+#Testing for HWE
+genind1_hwt <- hw.test(genind1, B=0) #HWE test, one test per locus, B=0 is parametric version
+genind1_hwt[1:10,]
+```
+
+### **Fst**
+```{r}
+#F statistics to analyze population structure
+genind1_Fst <- pegas::Fst(as.loci(genind1)) #F statistics (Fit, Fst, Fis) per locus
+genind1_Fst[1:10,]
+```
+
+### **Run PCA: adegenet**
+```{r}
+#PCA to summarize genetic diversity in sampled populations
+sum(is.na(genind1$tab)) #calculates how many missing data (NA) values are present in data, missing data needs to be replaced
+
+genind1_adjusted_NA <- scaleGen(genind1, NA.method="mean") #replaces NA values with mean allele frequency
+class(genind1_adjusted_NA) #checks class of transformed data
+dim(genind1_adjusted_NA) #displays dimensions of transformed data
+genind1_adjusted_NA[1:5,1:5] #displays first 5 columns and rows of transformed data
+
+#PCA
+genind1_pca <- dudi.pca(genind1_adjusted_NA, cent=FALSE, scale=FALSE, scannf=FALSE, nf=3) #compute PCA of transformed genind1 data adjusted to replace NA values with mean allele frequency 
+
+genind1_pca #information output from PCA
+
+barplot(genind1_pca$eig[1:50], main="PCA eigenvalues", col=heat.colors(50)) #barplot displaying first 50 eigenvalues computed from PCA
+
+fviz_screeplot(genind1_pca, geom = "bar", addlabels = F, ylim = c(0, 3), ncp=50) + #visualize eigenvector screeplot
+  labs(x= "Eigenvalues", y = "Variance (%)", title = "PCA Eigenvalues") +
+  theme_classic(base_size = 11) +
+  scale_x_discrete(breaks = c(1, 25, 50))
+```
+
+### **Plot PCA: factoextra**
+```{r, fig.width=9, fig.height=6}
+# Adegenet PCA using factoextra to plot
+fviz_pca_ind(genind1_pca,
+             label = "none", # hide individual labels
+             legend.title = "Population",
+             ) +
+  geom_point(aes(col = genind1$pop)) +
+  stat_ellipse(aes(col = genind1$pop)) +
+  labs(x="PC1 (2.8%)", y="PC2 (1.3%)", title = "PCA") +
+  rory_theme +
+  scale_color_discrete(labels = c("Merced_1", "Merced_2", "Merced_3", "Merced_4", "Merced_5", "Merced_6", "Merced_7", "PEK", "AUR", "SCF", "DEL", "MC", "VGO", "AAF", "KANK", "CHE", "JCK", "TR", "STW", "PCL", "DMD", "KEY", "GTY"))
+```
+***  
+  
+# **PCA: STRUCTURE genetic subunits**  
+### **Read in data (STRUCTURE subunits) - genind2**
+```{r}
+# read in genepop file from stacks to a genind object
+genind2 <- read.genepop("../ref_map_pl_2/populations_9/populations_structure_subunits.gen")  #read in genepop file from STACKS to a genind object
+```
+
+### **Data Summary (STRUCTURE subunits)**  
+```{r}
+genind2_summary <- summary(genind2) #summary of STACKS genepop file as genind object
+names(genind2_summary) #print names of the genind object
+par(mfrow=c(2,2)) #function to set graphical parameters to output following plots like a facet with 2 rows and 2 columns
+plot(genind2_summary$n.by.pop, genind2_summary$pop.n.all, xlab="Population sample size", ylab="Number of alleles",main="Alleles numbers and sample sizes",type="p") #plot of genind object summary displaying scatterplot of allele numbers to population sample size
+barplot(genind2_summary$loc.n.all, ylab="Number of alleles",main="Number of alleles per locus") #barplot of genind object summary displaying the number of alleles at each locus
+barplot(genind2_summary$Hexp-genind2_summary$Hobs, main="Heterozygosity: expected-observed",ylab="Hexp - Hobs") #barplot of genind object summary displaying the difference between expected and observed heterozygosity
+barplot(genind2_summary$n.by.pop, main="Sample sizes per population",ylab="Number of genotypes",las=3) #barplot of genind object summmary displaying population sample sizes
+```
+
+### **Run PCA (STRUCTURE subunits): adegenet**  
+```{r}
+sum(is.na(genind2$tab)) #calculates how many missing data (NA) values are present in data, missing data needs to be replaced
+genind2_adjusted_NA <- scaleGen(genind2, NA.method="mean") #replaces NA values with mean allele frequency
+class(genind2_adjusted_NA) #checks class of transformed data
+dim(genind2_adjusted_NA) #displays dimensions of transformed data
+genind2_adjusted_NA[1:5,1:5] #displays first 5 columns and rows of transformed data
+#PCA: adegenet
+genind2_pca <- dudi.pca(genind2_adjusted_NA, cent=FALSE, scale=FALSE, scannf=FALSE, nf=3) #compute PCA of transformed genind1 data adjusted to replace NA values with mean allele frequency
+
+genind2_pca #information output from PCA
+
+barplot(genind2_pca$eig[1:50], main="PCA eigenvalues", col=heat.colors(50)) #barplot displaying first 50 eigenvalues computed from PCA
+
+fviz_screeplot(genind2_pca, geom = "bar", addlabels = F, ylim = c(0, 3), ncp=50) + #visualize eigenvector screeplot
+  labs(x= "Eigenvalues", y = "Variance (%)", title = "PCA Eigenvalues") +
+  theme_classic(base_size = 11) +
+  scale_x_discrete(breaks = c(1, 25, 50))
+```
+
+### **Plot PCA: factoextra (STRUCTURE subunits)**  
+```{r, fig.width=9, fig.height=6}
+# Adegenet PCA using factoextra to plot
+fviz_pca_ind(genind2_pca,
+             label = "none", # hide individual labels
+             legend.title = "Population") + # set legend title
+  geom_point(aes(col = genind2$pop)) + # create pca scatterplot colored by population
+  stat_ellipse(aes(col = genind2$pop)) + # add 95% CI elipse colored by population
+  labs(x="PC1 (2.8%)", y="PC2 (1.3%)", title = "PCA - Structure Subunits") + # add axis labels
+  rory_theme +
+  scale_color_manual(labels = c("Merced", "Eastern", "Western", "Admixed"), values = c("green", "blue", "red", "purple")) + # add population legend labels and colors 
+  scale_x_continuous(trans = "reverse", labels = c("20", "10", "0", "-10", "-20", "-30")) #reverse x-axis to match previous pca plots and adjust tick labels
+```
+***  
+  
+# **PCA: Merced Dataset**
+### **Read in data (Merced) - genind3**
+```{r}
+# remove midwestern samples from "populations.gen" and save as populations_merced.gen
+# read in "populations_merced.gen" genepop file to a genind object
+genind3 <- read.genepop("populations_merced.gen")
+```
+
+### **Data Summary (Merced)**
+```{r}
+genind3_summary <- summary(genind3) #summary of STACKS genepop (merced) file as genind object
+names(genind3_summary) #print names of the genind object
+par(mfrow=c(2,2)) #function to set graphical parameters to output following plots like a facet with 2 rows and 2 columns
+plot(genind3_summary$n.by.pop, genind3_summary$pop.n.all, xlab="Population sample size", ylab="Number of alleles",main="Alleles numbers and sample sizes",type="p") #plot of genind object summary displaying scatterplot of allele numbers to population sample size
+barplot(genind3_summary$loc.n.all, ylab="Number of alleles",main="Number of alleles per locus") #barplot of genind object summary displaying the number of alleles at each locus
+barplot(genind3_summary$Hexp-genind3_summary$Hobs, main="Heterozygosity: expected-observed",ylab="Hexp - Hobs") #barplot of genind object summary displaying the difference between expected and observed heterozygosity
+barplot(genind3_summary$n.by.pop, main="Sample sizes per population",ylab="Number of genotypes",las=3) #barplot of genind object summmary displaying population sample sizes
+```
+
+### **Run PCA: adegenet (Merced)**
+```{r}
+sum(is.na(genind3$tab)) #calculates how many missing data (NA) values are present in data, missing data needs to be replaced
+genind3_adjusted_NA <- scaleGen(genind3, NA.method="mean") #replaces NA values with mean allele frequency
+class(genind3_adjusted_NA) #checks class of transformed data
+dim(genind3_adjusted_NA) #displays dimensions of transformed data
+genind3_adjusted_NA[1:5,1:5] #displays first 5 columns and rows of transformed data
+#PCA: adegenet
+genind3_pca <- dudi.pca(genind3_adjusted_NA, cent=FALSE, scale=FALSE, scannf=FALSE, nf=3) #compute PCA of transformed genind3 data adjusted to replace NA values with mean allele frequency
+
+genind3_pca #information output from PCA
+
+barplot(genind3_pca$eig[1:50], main="PCA eigenvalues", col=heat.colors(50)) #barplot displaying first 50 eigenvalues computed from PCA
+
+fviz_screeplot(genind3_pca, geom = "bar", addlabels = F, ylim = c(0, 3), ncp=50) + #visualize eigenvector screeplot
+  labs(x= "Eigenvalues", y = "Variance (%)", title = "PCA Eigenvalues") +
+  theme_classic(base_size = 11) +
+  scale_x_discrete(breaks = c(1, 25, 50))
+```
+
+### **Plot PCA: factoextra (Merced)**
+```{r, fig.width=9, fig.height=6}
+# Adegenet PCA using factoextra to plot
+fviz_pca_ind(genind3_pca,
+             label = "none", # hide individual labels
+             legend.title = "Population") + # set legend title
+  geom_point(aes(col = genind3$pop)) + # create pca scatterplot colored by population
+  stat_ellipse(aes(col = genind3$pop)) + # add 95% CI elipse colored by population
+  labs(x="PC1 (2.1%)", y="PC2 (1.9%)", title = "PCA - Merced") + # add axis labels
+  rory_theme +
+  scale_color_manual(labels = c("1", "2", "3", "4", "5", "6", "7"), values = funky(7)) # add population legend labels and colors 
+```
+
+
+
+
+
+
+
+
